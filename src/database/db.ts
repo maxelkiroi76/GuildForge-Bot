@@ -7,7 +7,8 @@ import {
   RoleReward, 
   InventoryItem, 
   UserQuest,
-  CharacterClass 
+  CharacterClass,
+  Item
 } from '../types/index.js';
 import { ITEMS, CLASS_BONUSES } from '../data/items.js';
 
@@ -107,6 +108,29 @@ export function initDatabase() {
       UNIQUE(user_id, guild_id, item_id)
     );
   `);
+
+  // Procedurally generated custom items table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS custom_items (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL,
+      type TEXT NOT NULL,
+      price INTEGER NOT NULL,
+      bonus_atk INTEGER DEFAULT 0,
+      bonus_def INTEGER DEFAULT 0,
+      bonus_hp INTEGER DEFAULT 0,
+      icon TEXT DEFAULT '🗡️',
+      rarity TEXT DEFAULT 'rare',
+      theme_color TEXT DEFAULT NULL
+    );
+  `);
+
+  // Load custom procedural items into ITEMS cache
+  const savedItems = db.prepare(`SELECT * FROM custom_items`).all() as any[];
+  for (const item of savedItems) {
+    ITEMS[item.id] = item;
+  }
 
   // User daily quests table
   db.exec(`
@@ -317,3 +341,30 @@ export function equipItem(userId: string, guildId: string, itemId: string): bool
 
   return false;
 }
+
+export function saveCustomItem(item: Item): void {
+  ITEMS[item.id] = item;
+  db.prepare(`
+    INSERT INTO custom_items (id, name, description, type, price, bonus_atk, bonus_def, bonus_hp, icon, rarity, theme_color)
+    VALUES (@id, @name, @description, @type, @price, @bonus_atk, @bonus_def, @bonus_hp, @icon, @rarity, @theme_color)
+    ON CONFLICT(id) DO UPDATE SET
+      name = excluded.name,
+      description = excluded.description,
+      bonus_atk = excluded.bonus_atk,
+      bonus_def = excluded.bonus_def,
+      bonus_hp = excluded.bonus_hp
+  `).run({
+    id: item.id,
+    name: item.name,
+    description: item.description,
+    type: item.type,
+    price: item.price,
+    bonus_atk: item.bonus_atk || 0,
+    bonus_def: item.bonus_def || 0,
+    bonus_hp: item.bonus_hp || 0,
+    icon: item.icon || '🗡️',
+    rarity: item.rarity || 'rare',
+    theme_color: item.theme_color || null
+  });
+}
+

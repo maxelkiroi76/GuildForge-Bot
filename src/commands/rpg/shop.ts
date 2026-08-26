@@ -8,8 +8,9 @@ import {
   ComponentType
 } from 'discord.js';
 import { Command } from '../../types/index.js';
-import { getUser, updateUser, addInventoryItem } from '../../database/db.js';
+import { getUser, updateUser, addInventoryItem, saveCustomItem } from '../../database/db.js';
 import { ITEMS } from '../../data/items.js';
+import { generateRandomItem } from '../../services/itemGenerator.js';
 
 export const shopCommand: Command = {
   category: 'rpg',
@@ -112,12 +113,49 @@ export const shopCommand: Command = {
         return;
       }
 
-      // Deduct gold and add item
+      // Deduct gold
       updateUser({
         user_id: userId,
         guild_id: guildId,
         gold: freshUser.gold - itemToBuy.price
       });
+
+      // Special handling for Mystery Lootbox Chests
+      if (selectedItemId.startsWith('chest_')) {
+        let forcedRarity: any = undefined;
+        let luckBonus = 0;
+
+        if (selectedItemId === 'chest_silver') {
+          forcedRarity = Math.random() < 0.6 ? 'rare' : 'epic';
+        } else if (selectedItemId === 'chest_gold') {
+          forcedRarity = Math.random() < 0.7 ? 'epic' : 'legendary';
+          luckBonus = 10;
+        } else if (selectedItemId === 'chest_mythic') {
+          forcedRarity = Math.random() < 0.75 ? 'legendary' : 'mythic';
+          luckBonus = 25;
+        }
+
+        const generatedItem = generateRandomItem(freshUser.level, undefined, forcedRarity, luckBonus);
+        saveCustomItem(generatedItem);
+        addInventoryItem(userId, guildId, generatedItem.id, 1);
+
+        const rarityEmoji = generatedItem.rarity === 'mythic' ? '🌟 MYTHIQUE' : generatedItem.rarity === 'legendary' ? '🟠 LÉGENDAIRE' : '🟣 ÉPIQUE';
+        let statsSummary = '';
+        if (generatedItem.bonus_atk) statsSummary += `🗡️ +${generatedItem.bonus_atk} ATK  `;
+        if (generatedItem.bonus_def) statsSummary += `🛡️ +${generatedItem.bonus_def} DEF  `;
+        if (generatedItem.bonus_hp) statsSummary += `❤️ +${generatedItem.bonus_hp} PV  `;
+
+        await selectInteraction.reply({
+          content: `🎁 **OUVERTURE DU ${itemToBuy.name.toUpperCase()} !**\n\n` +
+                   `✨ Une aura lumineuse s'échappe du coffre...\n` +
+                   `🎉 **Vous obtenez :** ${generatedItem.icon} **${generatedItem.name}** (\`${rarityEmoji}\`) !\n` +
+                   `📊 **Statistiques :** \`${statsSummary.trim()}\`\n` +
+                   `📜 *${generatedItem.description}*\n\n` +
+                   `👉 *Objet forgé et ajouté directement dans votre \`/inventory\` !*`,
+          ephemeral: false
+        });
+        return;
+      }
 
       addInventoryItem(userId, guildId, itemToBuy.id, 1);
 

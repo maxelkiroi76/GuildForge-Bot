@@ -56,7 +56,7 @@ export interface RoleReward {
 }
 
 export type ItemRarity = 'common' | 'rare' | 'epic' | 'legendary' | 'mythic';
-export type ItemType = 'weapon' | 'armor' | 'potion' | 'theme' | 'badge';
+export type ItemType = 'weapon' | 'armor' | 'potion' | 'consumable' | 'theme' | 'badge';
 
 export interface Item {
   id: string;

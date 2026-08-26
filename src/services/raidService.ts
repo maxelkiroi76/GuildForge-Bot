@@ -8,8 +8,9 @@ import {
   ButtonInteraction 
 } from 'discord.js';
 import { ActiveRaid, RaidParticipant } from '../types/index.js';
-import { getUser, updateUser, calculateEffectiveStats, addInventoryItem } from '../database/db.js';
+import { getUser, updateUser, calculateEffectiveStats, addInventoryItem, saveCustomItem } from '../database/db.js';
 import { incrementQuestProgress } from './questService.js';
+import { generateRandomItem } from './itemGenerator.js';
 
 // Map of active raids: guildId -> ActiveRaid
 export const activeRaids = new Map<string, ActiveRaid>();
@@ -279,6 +280,8 @@ async function finishRaidVictory(interaction: ButtonInteraction, raid: ActiveRai
     .setFooter({ text: 'Les récompenses (XP, Or et Butin) ont été distribuées à tous les participants !' })
     .setTimestamp();
 
+  let mvpLootText = '';
+
   // Distribute rewards to all participants
   for (let i = 0; i < sortedParticipants.length; i++) {
     const p = sortedParticipants[i];
@@ -297,10 +300,18 @@ async function finishRaidVictory(interaction: ButtonInteraction, raid: ActiveRai
       total_raids_won: user.total_raids_won + 1
     });
 
-    // MVP Bonus Loot
+    // MVP Guaranteed Procedural Legendary Drop
     if (i === 0) {
-      addInventoryItem(p.user_id, raid.guild_id, 'health_potion_large', 2);
+      const dropRarity = Math.random() < 0.25 ? 'mythic' : 'legendary';
+      const legendaryDrop = generateRandomItem(user.level, undefined, dropRarity, 15);
+      saveCustomItem(legendaryDrop);
+      addInventoryItem(p.user_id, raid.guild_id, legendaryDrop.id, 1);
+      mvpLootText = `\n\n✨ **BUTIN DU MVP (<@${p.user_id}>) :**\n🎁 ${legendaryDrop.icon} **${legendaryDrop.name}** (\`${legendaryDrop.rarity.toUpperCase()}\`)\n*${legendaryDrop.description}* (Retrouvez-le dans \`/inventory\`)`;
     }
+  }
+
+  if (mvpLootText) {
+    victoryEmbed.setDescription((victoryEmbed.data.description || '') + mvpLootText);
   }
 
   const disabledRow = createRaidActionRow(true);
