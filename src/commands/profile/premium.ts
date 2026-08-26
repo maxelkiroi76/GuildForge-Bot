@@ -18,9 +18,11 @@ export const premiumCommand: Command = {
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const userId = interaction.user.id;
     const guildId = interaction.guildId!;
+    const clientId = interaction.client.user.id;
 
     const premiumStatus = checkUserPremium(userId, guildId, interaction);
     const kofiUrl = process.env.KOFI_SHOP_URL || 'https://ko-fi.com/s/f0f1da22aa';
+    const storeUrl = `https://discord.com/application-directory/${clientId}/store`;
 
     const embed = new EmbedBuilder()
       .setColor(premiumStatus.isPremium ? '#ffd700' : '#8a2be2')
@@ -44,18 +46,23 @@ export const premiumCommand: Command = {
         { name: '🐉 Butin Rare de Raid Augmenté', value: 'Taux de drop d\'objets rares et potions majeures multiplié.', inline: false },
         { name: '🎨 Accès aux Thèmes de Profil Mythiques', value: 'Débloquez immédiatement le prestigieux thème *Or Impérial & Diamant*.', inline: false }
       )
-      .setFooter({ text: 'Paiement 100% sécurisé via Carte Bancaire, Apple Pay ou PayPal sur Ko-fi' })
+      .setFooter({ text: 'Paiement sécurisé directement géré par Discord In-App ou Ko-fi' })
       .setTimestamp();
 
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder()
-        .setLabel('Acheter le Pass VIP sur Ko-fi (2.99€)')
+        .setLabel('S\'abonner sur Discord (In-App)')
         .setEmoji('👑')
+        .setStyle(ButtonStyle.Link)
+        .setURL(storeUrl),
+      new ButtonBuilder()
+        .setLabel('Payer sur Ko-fi (CB / PayPal)')
+        .setEmoji('☕')
         .setStyle(ButtonStyle.Link)
         .setURL(kofiUrl),
       new ButtonBuilder()
         .setCustomId('premium_info')
-        .setLabel('Instructions & Activation')
+        .setLabel('Aide & Infos')
         .setEmoji('ℹ️')
         .setStyle(ButtonStyle.Secondary)
     );
