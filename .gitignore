@@ -9,8 +9,8 @@ dist/
 .env.local
 .env.*.local
 
-# SQLite Database & Local Data
-data/
+# SQLite Database at root (DO NOT IGNORE src/data/)
+/data/
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
