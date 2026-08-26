@@ -1,0 +1,36 @@
+{
+  "name": "guildforge-discord-bot",
+  "version": "1.0.0",
+  "description": "GuildForge - Innovative & Fun Community RPG Engine for Discord",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "deploy-commands": "tsx src/deploy-commands.ts",
+    "test-canvas": "tsx src/tests/testCanvas.ts"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "rpg",
+    "leveling",
+    "economy",
+    "canvas",
+    "games"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@napi-rs/canvas": "^0.1.66",
+    "better-sqlite3": "^11.8.1",
+    "discord.js": "^14.18.0",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.13.5",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3"
+  }
+}
