@@ -24,6 +24,37 @@ export const db = new Database(dbPath);
 // Enable WAL mode for high performance concurrency
 db.pragma('journal_mode = WAL');
 
+const VIP_BACKUP_PATH = path.join(dataDir, 'vip_persistent.json');
+
+export function loadVipBackup(): Record<string, { is_premium: number; premium_until: number | null }> {
+  try {
+    if (fs.existsSync(VIP_BACKUP_PATH)) {
+      return JSON.parse(fs.readFileSync(VIP_BACKUP_PATH, 'utf-8'));
+    }
+  } catch {}
+  return {};
+}
+
+export function saveVipBackup(userId: string, isPremium: number, premiumUntil: number | null) {
+  try {
+    const data = loadVipBackup();
+    data[userId] = { is_premium: isPremium, premium_until: premiumUntil };
+    fs.writeFileSync(VIP_BACKUP_PATH, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Erreur sauvegarde VIP backup:', err);
+  }
+}
+
+export function removeVipBackup(userId: string) {
+  try {
+    const data = loadVipBackup();
+    delete data[userId];
+    fs.writeFileSync(VIP_BACKUP_PATH, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Erreur suppression VIP backup:', err);
+  }
+}
+
 export function initDatabase() {
   // Users table
   db.exec(`
@@ -147,6 +178,22 @@ export function initDatabase() {
     );
   `);
 
+  // Restore all VIPs from permanent list & JSON backup
+  const ownerId = process.env.BOT_OWNER_ID || '799194986507534336';
+  const permVips = (process.env.PERMANENT_VIP_IDS?.split(',').map(s => s.trim()) || []).filter(Boolean);
+  if (ownerId && !permVips.includes(ownerId)) permVips.push(ownerId);
+
+  for (const vipId of permVips) {
+    db.prepare(`UPDATE users SET is_premium = 1 WHERE user_id = ?`).run(vipId);
+  }
+
+  const vipBackup = loadVipBackup();
+  for (const [vId, vData] of Object.entries(vipBackup)) {
+    if (vData.is_premium === 1 && (!vData.premium_until || vData.premium_until > Date.now())) {
+      db.prepare(`UPDATE users SET is_premium = 1, premium_until = ? WHERE user_id = ?`).run(vData.premium_until, vId);
+    }
+  }
+
   console.log('✅ SQLite Database initialized successfully at:', dbPath);
 }
 
@@ -157,11 +204,31 @@ export function getUser(userId: string, guildId: string): UserProfile {
     SELECT * FROM users WHERE user_id = ? AND guild_id = ?
   `).get(userId, guildId) as UserProfile | undefined;
 
-  if (row) return row;
+  const ownerId = process.env.BOT_OWNER_ID || '799194986507534336';
+  const permVips = (process.env.PERMANENT_VIP_IDS?.split(',').map(s => s.trim()) || []).filter(Boolean);
+  if (ownerId && !permVips.includes(ownerId)) permVips.push(ownerId);
+  const isPerm = permVips.includes(userId);
+
+  const vipBackup = loadVipBackup();
+  const backupEntry = vipBackup[userId];
+  const isBackedUp = backupEntry && backupEntry.is_premium === 1 && (!backupEntry.premium_until || backupEntry.premium_until > Date.now());
+
+  if (row) {
+    // Auto-restore VIP status if permanent or backed up
+    if ((isPerm || isBackedUp) && row.is_premium !== 1) {
+      const expires = isPerm ? null : (backupEntry?.premium_until || null);
+      db.prepare(`UPDATE users SET is_premium = 1, premium_until = ? WHERE user_id = ? AND guild_id = ?`).run(expires, userId, guildId);
+      row.is_premium = 1;
+      row.premium_until = expires;
+    }
+    return row;
+  }
 
   // Create default user profile
   const defaultClass: CharacterClass = 'warrior';
   const stats = CLASS_BONUSES[defaultClass];
+  const isInitialVip = isPerm || isBackedUp ? 1 : 0;
+  const initialVipExpires = isPerm ? null : (backupEntry?.premium_until || null);
 
   const insert = db.prepare(`
     INSERT INTO users (
@@ -169,19 +236,22 @@ export function getUser(userId: string, guildId: string): UserProfile {
       hp, max_hp, mana, max_mana, atk, def,
       equipped_weapon, equipped_armor, profile_theme,
       daily_streak, last_daily, last_message_xp, voice_joined_at,
-      reputation, total_raids_won, total_duels_won
+      reputation, total_raids_won, total_duels_won,
+      is_premium, premium_until
     ) VALUES (
       ?, ?, 0, 1, 150, 0, ?,
       ?, ?, ?, ?, ?, ?,
       NULL, NULL, 'theme_cosmic',
       0, NULL, 0, NULL,
-      0, 0, 0
+      0, 0, 0,
+      ?, ?
     )
   `);
 
   insert.run(
     userId, guildId, defaultClass,
-    stats.hp, stats.hp, stats.mana, stats.mana, stats.atk, stats.def
+    stats.hp, stats.hp, stats.mana, stats.mana, stats.atk, stats.def,
+    isInitialVip, initialVipExpires
   );
 
   return db.prepare(`

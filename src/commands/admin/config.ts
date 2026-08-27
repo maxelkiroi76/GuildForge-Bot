@@ -140,15 +140,9 @@ export const configCommand: Command = {
 
       const targetUser = interaction.options.getUser('membre', true);
       const days = interaction.options.getInteger('jours') || 30;
-      const expires = Date.now() + days * 24 * 60 * 60 * 1000;
 
-      const userProfile = getUser(targetUser.id, guildId);
-      updateUser({
-        user_id: targetUser.id,
-        guild_id: guildId,
-        is_premium: 1,
-        premium_until: expires
-      });
+      const { grantUserVip } = await import('../../services/premiumService.js');
+      grantUserVip(targetUser.id, guildId, days);
 
       await interaction.reply({
         content: `👑 Félicitations ! <@${targetUser.id}> a reçu le statut **VIP GuildForge** pour **${days} jours** ! (+50% XP/Or, Badge doré sur \`/rank\`).`,
@@ -167,12 +161,8 @@ export const configCommand: Command = {
       }
 
       const targetUser = interaction.options.getUser('membre', true);
-      updateUser({
-        user_id: targetUser.id,
-        guild_id: guildId,
-        is_premium: 0,
-        premium_until: null
-      });
+      const { revokeUserVip } = await import('../../services/premiumService.js');
+      revokeUserVip(targetUser.id, guildId);
 
       await interaction.reply({
         content: `⚪ Le statut VIP de <@${targetUser.id}> a été révoqué.`,

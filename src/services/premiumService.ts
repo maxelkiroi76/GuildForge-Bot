@@ -1,5 +1,5 @@
 import { Interaction, User, Guild } from 'discord.js';
-import { getUser, updateUser, getGuildConfig, updateGuildConfig } from '../database/db.js';
+import { getUser, updateUser, getGuildConfig, updateGuildConfig, saveVipBackup, removeVipBackup } from '../database/db.js';
 
 export interface PremiumStatus {
   isPremium: boolean;
@@ -11,7 +11,28 @@ export interface PremiumStatus {
   expiresAt: number | null;
 }
 
+export function isPermanentVip(userId: string): boolean {
+  const ownerId = process.env.BOT_OWNER_ID || '799194986507534336';
+  if (userId === ownerId) return true;
+
+  const permVips = (process.env.PERMANENT_VIP_IDS?.split(',').map(s => s.trim()) || []).filter(Boolean);
+  return permVips.includes(userId);
+}
+
 export function checkUserPremium(userId: string, guildId: string, interaction?: Interaction): PremiumStatus {
+  // 0. Permanent VIP (Bot Owner & Whitelisted IDs)
+  if (isPermanentVip(userId)) {
+    return {
+      isPremium: true,
+      tier: 'vip_user',
+      xpMultiplier: 1.5,
+      goldMultiplier: 1.5,
+      badge: '👑 VIP',
+      source: 'database_gift',
+      expiresAt: null
+    };
+  }
+
   const user = getUser(userId, guildId);
   const guildConfig = getGuildConfig(guildId);
   const now = Date.now();
@@ -20,7 +41,6 @@ export function checkUserPremium(userId: string, guildId: string, interaction?: 
   if (interaction && 'entitlements' in interaction && interaction.entitlements) {
     const userEntitlements = interaction.entitlements;
     if (userEntitlements.size > 0) {
-      // User or Guild has a valid Discord Subscription
       return {
         isPremium: true,
         tier: 'vip_user',
@@ -38,6 +58,7 @@ export function checkUserPremium(userId: string, guildId: string, interaction?: 
     if (user.premium_until && user.premium_until < now) {
       // Expired
       updateUser({ user_id: userId, guild_id: guildId, is_premium: 0, premium_until: null });
+      removeVipBackup(userId);
     } else {
       return {
         isPremium: true,
@@ -81,13 +102,14 @@ export function checkUserPremium(userId: string, guildId: string, interaction?: 
 }
 
 export function grantUserVip(userId: string, guildId: string, durationDays = 30): void {
-  const expires = Date.now() + durationDays * 24 * 60 * 60 * 1000;
+  const expires = durationDays === -1 ? null : Date.now() + durationDays * 24 * 60 * 60 * 1000;
   updateUser({
     user_id: userId,
     guild_id: guildId,
     is_premium: 1,
     premium_until: expires
   });
+  saveVipBackup(userId, 1, expires);
 }
 
 export function revokeUserVip(userId: string, guildId: string): void {
@@ -97,4 +119,5 @@ export function revokeUserVip(userId: string, guildId: string): void {
     is_premium: 0,
     premium_until: null
   });
+  removeVipBackup(userId);
 }
