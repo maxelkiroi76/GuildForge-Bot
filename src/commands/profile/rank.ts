@@ -16,6 +16,7 @@ export const rankCommand: Command = {
     ),
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
+    console.log('🚀 [NEW RANK COMMAND] Executing rank for user:', interaction.user.username, 'at', new Date().toISOString());
     await interaction.deferReply();
 
     const targetUser = interaction.options.getUser('membre') || interaction.user;
@@ -32,7 +33,9 @@ export const rankCommand: Command = {
 
     try {
       const cardBuffer = await generateRankCard(userProfile, avatarUrl, username);
-      const attachment = new AttachmentBuilder(cardBuffer, { name: `rank-${targetUser.id}.png` });
+      const isGif = userProfile.is_premium === 1;
+      const filename = `rank-${targetUser.id}.${isGif ? 'gif' : 'png'}`;
+      const attachment = new AttachmentBuilder(cardBuffer, { name: filename });
 
       await interaction.editReply({
         files: [attachment]

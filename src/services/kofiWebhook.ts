@@ -162,6 +162,14 @@ export function startKofiWebhookServer(client: Client, port = Number(process.env
     res.end('Not Found');
   });
 
+  server.on('error', (err: any) => {
+    if (err.code === 'EADDRINUSE') {
+      console.warn(`⚠️ Port ${port} déjà utilisé pour le Webhook Ko-fi. Le bot Discord continue de fonctionner normalement.`);
+    } else {
+      console.error('Erreur serveur Webhook Ko-fi :', err);
+    }
+  });
+
   server.listen(port, () => {
     console.log(`🌐 Serveur Webhook Ko-fi actif sur le port ${port} (Route: /api/kofi-webhook)`);
   });

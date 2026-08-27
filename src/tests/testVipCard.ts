@@ -27,9 +27,19 @@ async function main() {
     'Maxelkiroi'
   );
 
-  const outPath = path.resolve(process.cwd(), 'data/test_vip_rank.png');
+  const outPath = path.resolve(process.cwd(), `data/test_vip_rank.${buffer.isGif ? 'gif' : 'png'}`);
   fs.writeFileSync(outPath, buffer);
-  console.log('✅ VIP Card generated at:', outPath);
+  console.log('✅ VIP Card generated at:', outPath, 'isGif:', buffer.isGif, 'size:', buffer.length);
+
+  // Also save a static PNG for visual inspection
+  const { generateStaticRankCard } = await import('../services/canvasService.js');
+  const staticBuf = await generateStaticRankCard(
+    updatedUser,
+    'https://cdn.discordapp.com/embed/avatars/1.png',
+    'Maxelkiroi'
+  );
+  fs.writeFileSync(path.resolve(process.cwd(), 'data/test_vip_rank_preview.png'), staticBuf);
+  console.log('✅ Static VIP Preview saved at data/test_vip_rank_preview.png');
 }
 
 main().catch(console.error);
