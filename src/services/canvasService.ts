@@ -283,17 +283,19 @@ const VIP_BADGE_STYLES: VipBadgeStyle[] = [
   }
 ];
 
-function getVipStyleForUser(userId: string, randomize = true): VipBadgeStyle {
-  if (randomize) {
-    const randomIndex = Math.floor(Math.random() * VIP_BADGE_STYLES.length);
-    return VIP_BADGE_STYLES[randomIndex];
+function getVipStyleForUser(userId: string): VipBadgeStyle {
+  const ownerId = process.env.BOT_OWNER_ID || '799194986507534336';
+  if (userId === ownerId) {
+    return VIP_BADGE_STYLES[0]; // Or Royal Impérial pour le Créateur
   }
-  // Deterministic seed fallback
-  let hash = 0;
+
+  // Stable deterministic FNV-1a hash per Discord User ID
+  let hash = 2166136261;
   for (let i = 0; i < userId.length; i++) {
-    hash = (hash * 31 + userId.charCodeAt(i)) & 0xffffffff;
+    hash ^= userId.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
   }
-  const index = Math.abs(hash) % VIP_BADGE_STYLES.length;
+  const index = Math.abs(hash >>> 0) % VIP_BADGE_STYLES.length;
   return VIP_BADGE_STYLES[index];
 }
 
@@ -306,13 +308,28 @@ interface ParticleConfig {
   hueOffset?: number;
 }
 
-function generateDynamicParticles(count = 20): ParticleConfig[] {
-  return Array.from({ length: count }, (_, i) => ({
-    x: 40 + Math.floor(Math.random() * 920),
-    baseY: Math.floor(Math.random() * 500),
-    size: 1.2 + Math.random() * 2.2,
-    speed: 30 + Math.random() * 45,
-    opacity: 0.25 + Math.random() * 0.55
+function createSeededRandom(seed: number) {
+  return function() {
+    let t = (seed += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function generateDynamicParticles(userId: string, count = 22): ParticleConfig[] {
+  let seed = 1337;
+  for (let i = 0; i < userId.length; i++) {
+    seed = (seed * 31 + userId.charCodeAt(i)) >>> 0;
+  }
+  const rand = createSeededRandom(seed);
+
+  return Array.from({ length: count }, () => ({
+    x: 40 + Math.floor(rand() * 920),
+    baseY: Math.floor(rand() * 500),
+    size: 1.2 + rand() * 2.2,
+    speed: 30 + rand() * 45,
+    opacity: 0.25 + rand() * 0.55
   }));
 }
 
@@ -453,8 +470,8 @@ async function renderCardCanvas(
   const colors = getThemeColors(theme.id);
   const isVip = user.is_premium === 1;
 
-  const currentVipStyle = vipStyle || getVipStyleForUser(user.user_id, true);
-  const currentParticles = particles || generateDynamicParticles(18);
+  const currentVipStyle = vipStyle || getVipStyleForUser(user.user_id);
+  const currentParticles = particles || generateDynamicParticles(user.user_id, 18);
 
   // 1. Draw Frame & Background
   drawCardFrame(ctx, width, height, colors, animTime, isVip, currentVipStyle, currentParticles, icons);
@@ -952,9 +969,9 @@ export async function generateAnimatedVipRankCard(
     avatarImg = null;
   }
 
-  // Pick unique/random VIP style & particle configuration for this render
-  const vipStyle = getVipStyleForUser(user.user_id, true);
-  const particles = generateDynamicParticles(22);
+  // Pick unique fixed VIP style & deterministic particle constellation for this user
+  const vipStyle = getVipStyleForUser(user.user_id);
+  const particles = generateDynamicParticles(user.user_id, 22);
 
   const gif = GIFEncoder();
   const totalFrames = 18;
@@ -988,8 +1005,8 @@ export async function generateStaticRankCard(
     avatarImg = null;
   }
 
-  const vipStyle = getVipStyleForUser(user.user_id, false);
-  const particles = generateDynamicParticles(18);
+  const vipStyle = getVipStyleForUser(user.user_id);
+  const particles = generateDynamicParticles(user.user_id, 18);
 
   const ctx = await renderCardCanvas(user, avatarImg, username, 0, vipStyle, particles);
   return ctx.canvas.toBuffer('image/png');
