@@ -166,14 +166,155 @@ function getThemeColors(themeId: string): ThemeColors {
   };
 }
 
-// Particle cache for seamless VIP looping
-const VIP_PARTICLES = Array.from({ length: 18 }, (_, i) => ({
-  x: 50 + (i * 53) % 900,
-  baseY: 40 + (i * 27) % 420,
-  size: 1.5 + (i % 3) * 1.2,
-  speed: 40 + (i % 4) * 20,
-  opacity: 0.3 + (i % 5) * 0.14
-}));
+interface VipBadgeStyle {
+  id: string;
+  name: string;
+  gradStops: [number, string][];
+  borderColor: string;
+  glowColor: string;
+  textColor: string;
+  particleColor: string;
+  sheenColor: string;
+  crownColor: string;
+}
+
+const VIP_BADGE_STYLES: VipBadgeStyle[] = [
+  // 1. Royal Gold Emperor
+  {
+    id: 'royal_gold',
+    name: 'Or Royal Impérial',
+    gradStops: [
+      [0, '#fff3b0'],
+      [0.3, '#f59e0b'],
+      [0.75, '#b45309'],
+      [1, '#78350f']
+    ],
+    borderColor: '#ffe066',
+    glowColor: '#ffd700',
+    textColor: '#ffffff',
+    particleColor: '#ffd700',
+    sheenColor: 'rgba(255, 255, 255, 0.85)',
+    crownColor: '#ffd700'
+  },
+  // 2. Cosmic Astral Nebula
+  {
+    id: 'cosmic_astral',
+    name: 'Nébuleuse Cosmique',
+    gradStops: [
+      [0, '#e9d5ff'],
+      [0.35, '#a855f7'],
+      [0.75, '#6b21a8'],
+      [1, '#2e1065']
+    ],
+    borderColor: '#d8b4fe',
+    glowColor: '#c084fc',
+    textColor: '#ffffff',
+    particleColor: '#38bdf8',
+    sheenColor: 'rgba(0, 240, 255, 0.85)',
+    crownColor: '#c084fc'
+  },
+  // 3. Inferno Phoenix Flame
+  {
+    id: 'inferno_phoenix',
+    name: 'Flamme du Phénix',
+    gradStops: [
+      [0, '#fef08a'],
+      [0.35, '#f97316'],
+      [0.75, '#dc2626'],
+      [1, '#450a0a']
+    ],
+    borderColor: '#fed7aa',
+    glowColor: '#ff4500',
+    textColor: '#ffffff',
+    particleColor: '#f97316',
+    sheenColor: 'rgba(255, 230, 100, 0.9)',
+    crownColor: '#f97316'
+  },
+  // 4. Diamond Crystal Frost
+  {
+    id: 'crystal_diamond',
+    name: 'Diamant Polaire',
+    gradStops: [
+      [0, '#ffffff'],
+      [0.35, '#7dd3fc'],
+      [0.75, '#0284c7'],
+      [1, '#082f49']
+    ],
+    borderColor: '#bae6fd',
+    glowColor: '#38bdf8',
+    textColor: '#ffffff',
+    particleColor: '#bae6fd',
+    sheenColor: 'rgba(255, 255, 255, 0.95)',
+    crownColor: '#7dd3fc'
+  },
+  // 5. Cyber Synthwave Overdrive
+  {
+    id: 'cyber_synth',
+    name: 'Cyber Synthwave',
+    gradStops: [
+      [0, '#00f2fe'],
+      [0.4, '#ec4899'],
+      [0.8, '#a855f7'],
+      [1, '#1e0836']
+    ],
+    borderColor: '#ff007f',
+    glowColor: '#ff007f',
+    textColor: '#ffffff',
+    particleColor: '#00f2fe',
+    sheenColor: 'rgba(255, 0, 127, 0.85)',
+    crownColor: '#00f2fe'
+  },
+  // 6. Emerald Dragon Jade
+  {
+    id: 'emerald_dragon',
+    name: 'Émeraude Mythique',
+    gradStops: [
+      [0, '#a7f3d0'],
+      [0.35, '#10b981'],
+      [0.75, '#047857'],
+      [1, '#064e3b']
+    ],
+    borderColor: '#6ee7b7',
+    glowColor: '#10b981',
+    textColor: '#ffffff',
+    particleColor: '#34d399',
+    sheenColor: 'rgba(167, 243, 208, 0.9)',
+    crownColor: '#34d399'
+  }
+];
+
+function getVipStyleForUser(userId: string, randomize = true): VipBadgeStyle {
+  if (randomize) {
+    const randomIndex = Math.floor(Math.random() * VIP_BADGE_STYLES.length);
+    return VIP_BADGE_STYLES[randomIndex];
+  }
+  // Deterministic seed fallback
+  let hash = 0;
+  for (let i = 0; i < userId.length; i++) {
+    hash = (hash * 31 + userId.charCodeAt(i)) & 0xffffffff;
+  }
+  const index = Math.abs(hash) % VIP_BADGE_STYLES.length;
+  return VIP_BADGE_STYLES[index];
+}
+
+interface ParticleConfig {
+  x: number;
+  baseY: number;
+  size: number;
+  speed: number;
+  opacity: number;
+  hueOffset?: number;
+}
+
+function generateDynamicParticles(count = 20): ParticleConfig[] {
+  return Array.from({ length: count }, (_, i) => ({
+    x: 40 + Math.floor(Math.random() * 920),
+    baseY: Math.floor(Math.random() * 500),
+    size: 1.2 + Math.random() * 2.2,
+    speed: 30 + Math.random() * 45,
+    opacity: 0.25 + Math.random() * 0.55
+  }));
+}
 
 function drawCardFrame(
   ctx: SKRSContext2D,
@@ -182,6 +323,8 @@ function drawCardFrame(
   colors: ThemeColors,
   animTime: number,
   isVip: boolean,
+  vipStyle: VipBadgeStyle,
+  particles: ParticleConfig[],
   icons: Record<string, Image>
 ) {
   // 1. Deep Layered Gradient Background
@@ -219,7 +362,7 @@ function drawCardFrame(
   const orb1Alpha = isVip ? 0.35 + 0.1 * pulse : 0.3;
   const orb2Alpha = isVip ? 0.3 + 0.1 * pulse : 0.25;
 
-  ctx.fillStyle = colors.primary + Math.round(orb1Alpha * 255).toString(16).padStart(2, '0');
+  ctx.fillStyle = (isVip ? vipStyle.glowColor : colors.primary) + Math.round(orb1Alpha * 255).toString(16).padStart(2, '0');
   ctx.beginPath();
   ctx.arc(160, 140, 160, 0, Math.PI * 2);
   ctx.fill();
@@ -230,13 +373,13 @@ function drawCardFrame(
   ctx.fill();
   ctx.restore();
 
-  // 4. Floating Gold Particles for VIP
+  // 4. Randomized Floating Particles for VIP
   if (isVip) {
     ctx.save();
-    for (const p of VIP_PARTICLES) {
+    for (const p of particles) {
       const curY = (p.baseY - animTime * p.speed + 500) % 500;
       const alpha = Math.sin(((curY / 500) * Math.PI)) * p.opacity;
-      ctx.globalAlpha = Math.max(0.1, alpha);
+      ctx.globalAlpha = Math.max(0.12, alpha);
       ctx.drawImage(icons.sparkle, p.x, curY, p.size * 5, p.size * 5);
     }
     ctx.restore();
@@ -246,10 +389,10 @@ function drawCardFrame(
   ctx.save();
   const borderGrad = ctx.createLinearGradient(0, 0, width, height);
   if (isVip) {
-    borderGrad.addColorStop(0, '#ffd700');
+    borderGrad.addColorStop(0, vipStyle.borderColor);
     borderGrad.addColorStop(0.5, colors.secondary);
-    borderGrad.addColorStop(1, '#ffd700');
-    ctx.shadowColor = '#ffd700';
+    borderGrad.addColorStop(1, vipStyle.borderColor);
+    ctx.shadowColor = vipStyle.glowColor;
     ctx.shadowBlur = 14 + 6 * Math.sin(animTime * Math.PI * 2);
   } else {
     borderGrad.addColorStop(0, colors.primary);
@@ -266,7 +409,7 @@ function drawCardFrame(
 
   // 6. Precision Corner Tech Brackets
   ctx.save();
-  ctx.strokeStyle = isVip ? '#ffd700' : colors.secondary;
+  ctx.strokeStyle = isVip ? vipStyle.borderColor : colors.secondary;
   ctx.lineWidth = 2.5;
   const bLen = 18;
   // Top-Left
@@ -292,7 +435,9 @@ async function renderCardCanvas(
   user: UserProfile,
   avatarImg: Image | null,
   username: string,
-  animTime: number = 0
+  animTime: number = 0,
+  vipStyle?: VipBadgeStyle,
+  particles?: ParticleConfig[]
 ): Promise<SKRSContext2D> {
   const width = 1000;
   const height = 500;
@@ -308,8 +453,11 @@ async function renderCardCanvas(
   const colors = getThemeColors(theme.id);
   const isVip = user.is_premium === 1;
 
+  const currentVipStyle = vipStyle || getVipStyleForUser(user.user_id, true);
+  const currentParticles = particles || generateDynamicParticles(18);
+
   // 1. Draw Frame & Background
-  drawCardFrame(ctx, width, height, colors, animTime, isVip, icons);
+  drawCardFrame(ctx, width, height, colors, animTime, isVip, currentVipStyle, currentParticles, icons);
 
   // ==========================================
   // TOP SECTION: AVATAR + LEVEL EMBED
@@ -321,9 +469,9 @@ async function renderCardCanvas(
   // Outer Glowing Aura Ring
   ctx.save();
   const auraPulse = isVip ? 4 * Math.sin(animTime * Math.PI * 2) : 0;
-  ctx.shadowColor = isVip ? '#ffd700' : colors.primary;
+  ctx.shadowColor = isVip ? currentVipStyle.glowColor : colors.primary;
   ctx.shadowBlur = 18 + auraPulse;
-  ctx.strokeStyle = isVip ? '#ffd700' : colors.primary;
+  ctx.strokeStyle = isVip ? currentVipStyle.borderColor : colors.primary;
   ctx.lineWidth = isVip ? 4.5 : 3.5;
   ctx.beginPath();
   ctx.arc(avatarCenterX, avatarCenterY, avatarRadius + 4, 0, Math.PI * 2);
@@ -396,7 +544,7 @@ async function renderCardCanvas(
   const headerTextX = 230;
   const usernameY = 82;
   const rankBoxX = 685;
-  const vipBadgeW = 94;
+  const vipBadgeW = 96;
   const vipBadgeH = 32;
   const maxRightBound = rankBoxX - 25;
 
@@ -420,27 +568,26 @@ async function renderCardCanvas(
   ctx.fillText(cleanUsername, headerTextX, usernameY);
   const nameWidth = ctx.measureText(cleanUsername).width;
 
-  // VIP Royal Golden Badge
+  // VIP Badge with Dynamic Style Variant
   if (isVip) {
     const vipX = headerTextX + nameWidth + 16;
     const vipY = usernameY - vipBadgeH / 2;
 
     ctx.save();
-    // Shiny Gold Pill Gradient
+    // Dynamic Pill Gradient from Style
     const vipGrad = ctx.createLinearGradient(vipX, vipY, vipX + vipBadgeW, vipY + vipBadgeH);
-    vipGrad.addColorStop(0, '#ffe066');
-    vipGrad.addColorStop(0.3, '#d97706');
-    vipGrad.addColorStop(0.8, '#b45309');
-    vipGrad.addColorStop(1, '#78350f');
+    for (const [stop, color] of currentVipStyle.gradStops) {
+      vipGrad.addColorStop(stop, color);
+    }
     ctx.fillStyle = vipGrad;
     roundRect(ctx, vipX, vipY, vipBadgeW, vipBadgeH, 16);
     ctx.fill();
 
-    // Golden Neon Border
-    ctx.strokeStyle = '#fff4a3';
+    // Glowing Neon Border
+    ctx.strokeStyle = currentVipStyle.borderColor;
     ctx.lineWidth = 1.8;
-    ctx.shadowColor = '#ffd700';
-    ctx.shadowBlur = 12 + 4 * Math.sin(animTime * Math.PI * 2);
+    ctx.shadowColor = currentVipStyle.glowColor;
+    ctx.shadowBlur = 12 + 5 * Math.sin(animTime * Math.PI * 2);
     roundRect(ctx, vipX, vipY, vipBadgeW, vipBadgeH, 16);
     ctx.stroke();
 
@@ -450,9 +597,9 @@ async function renderCardCanvas(
       roundRect(ctx, vipX, vipY, vipBadgeW, vipBadgeH, 16);
       ctx.clip();
       const sheenX = vipX - 40 + animTime * (vipBadgeW + 80);
-      const sheenGrad = ctx.createLinearGradient(sheenX, vipY, sheenX + 30, vipY + vipBadgeH);
+      const sheenGrad = ctx.createLinearGradient(sheenX, vipY, sheenX + 32, vipY + vipBadgeH);
       sheenGrad.addColorStop(0, 'rgba(255, 255, 255, 0)');
-      sheenGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.75)');
+      sheenGrad.addColorStop(0.5, currentVipStyle.sheenColor);
       sheenGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
       ctx.fillStyle = sheenGrad;
       ctx.fillRect(vipX, vipY, vipBadgeW, vipBadgeH);
@@ -463,7 +610,7 @@ async function renderCardCanvas(
     ctx.shadowBlur = 0;
     ctx.drawImage(icons.crown, vipX + 10, vipY + (vipBadgeH - 22) / 2, 22, 22);
 
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = currentVipStyle.textColor;
     ctx.font = `900 17px ${FONT_FAMILY}`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
@@ -744,7 +891,7 @@ async function renderCardCanvas(
       const waveX = barX - 60 + animTime * (fillWidth + 120);
       const waveGrad = ctx.createLinearGradient(waveX, barY, waveX + 50, barY);
       waveGrad.addColorStop(0, 'rgba(255, 255, 255, 0)');
-      waveGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.6)');
+      waveGrad.addColorStop(0.5, currentVipStyle.sheenColor);
       waveGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
       ctx.fillStyle = waveGrad;
       ctx.fillRect(barX, barY, fillWidth, barH);
@@ -805,13 +952,17 @@ export async function generateAnimatedVipRankCard(
     avatarImg = null;
   }
 
+  // Pick unique/random VIP style & particle configuration for this render
+  const vipStyle = getVipStyleForUser(user.user_id, true);
+  const particles = generateDynamicParticles(22);
+
   const gif = GIFEncoder();
   const totalFrames = 18;
   const frameDelay = 55; // 55ms = ~18.2 fps
 
   for (let f = 0; f < totalFrames; f++) {
     const animTime = f / totalFrames;
-    const ctx = await renderCardCanvas(user, avatarImg, username, animTime);
+    const ctx = await renderCardCanvas(user, avatarImg, username, animTime, vipStyle, particles);
     const imgData = ctx.getImageData(0, 0, width, height);
     const palette = quantize(imgData.data, 256);
     const index = applyPalette(imgData.data, palette);
@@ -837,7 +988,10 @@ export async function generateStaticRankCard(
     avatarImg = null;
   }
 
-  const ctx = await renderCardCanvas(user, avatarImg, username, 0);
+  const vipStyle = getVipStyleForUser(user.user_id, false);
+  const particles = generateDynamicParticles(18);
+
+  const ctx = await renderCardCanvas(user, avatarImg, username, 0, vipStyle, particles);
   return ctx.canvas.toBuffer('image/png');
 }
 
@@ -870,4 +1024,3 @@ export async function generateRankCard(
     return pngBuffer;
   }
 }
-
