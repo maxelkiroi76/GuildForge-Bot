@@ -167,6 +167,8 @@ export const gambleCommand: Command = {
     // 1. ANIMATED SLOTS MACHINE
     // ==========================================
     if (sub === 'slots') {
+      await interaction.deferReply();
+
       const s1 = pickSlotSymbol();
       const s2 = pickSlotSymbol();
       const s3 = pickSlotSymbol();
@@ -190,7 +192,7 @@ export const gambleCommand: Command = {
       updateUser({ user_id: userId, guild_id: guildId, gold: user.gold + netGain });
 
       // Frame 1: Spinning reels
-      await interaction.reply({
+      await interaction.editReply({
         content: `🎰 **MACHINE À SOUS DU CASINO GUILDFORGE**\n` +
                  `\`[ 🌀 | 🌀 | 🌀 ]\`\n` +
                  `⚡ *Les rouleaux tourbillonnent à toute vitesse...*`
@@ -241,6 +243,8 @@ export const gambleCommand: Command = {
     // 2. ANIMATED COINFLIP
     // ==========================================
     if (sub === 'coinflip') {
+      await interaction.deferReply();
+
       const choice = interaction.options.getString('choix', true);
       const isHeads = Math.random() < 0.5;
       const result = isHeads ? 'pile' : 'face';
@@ -250,7 +254,7 @@ export const gambleCommand: Command = {
       updateUser({ user_id: userId, guild_id: guildId, gold: newGold });
 
       // Frame 1: Toss
-      await interaction.reply({
+      await interaction.editReply({
         content: `🪙 **PILE OU FACE**\n` +
                  `🌀 *Vous propulsez la pièce dorée dans les airs d'un coup de pouce...*`
       });
@@ -289,6 +293,8 @@ export const gambleCommand: Command = {
     // 3. ANIMATED 3D DICE ROLL
     // ==========================================
     if (sub === 'dice') {
+      await interaction.deferReply();
+
       const p1 = Math.floor(Math.random() * 6) + 1;
       const p2 = Math.floor(Math.random() * 6) + 1;
       const playerTotal = p1 + p2;
@@ -308,7 +314,7 @@ export const gambleCommand: Command = {
       updateUser({ user_id: userId, guild_id: guildId, gold: newGold });
 
       // Frame 1: Shaking dice cup
-      await interaction.reply({
+      await interaction.editReply({
         content: `🎲 **LANCER DE DÉS DE LA TAVERNE**\n` +
                  `🍶 *Vous secouez énergiquement le cornet de dés en cuir...*`
       });
@@ -350,6 +356,8 @@ export const gambleCommand: Command = {
     // 4. INTERACTIVE CASINO BLACKJACK
     // ==========================================
     if (sub === 'blackjack') {
+      await interaction.deferReply();
+
       const deck = createDeck();
       const playerHand: Card[] = [deck.pop()!, deck.pop()!];
       const dealerHand: Card[] = [deck.pop()!, deck.pop()!];
@@ -411,12 +419,12 @@ export const gambleCommand: Command = {
         updateUser({ user_id: userId, guild_id: guildId, gold: user.gold - currentBet + winAmount });
 
         const embed = buildBlackjackEmbed('🎉 **BLACKJACK NATUREL !** Vous remportez 3:2 votre mise !', false, '#ffd700');
-        await interaction.reply({ embeds: [embed], components: [buildButtons(true, false)] });
+        await interaction.editReply({ embeds: [embed], components: [buildButtons(true, false)] });
         return;
       }
 
       const initialEmbed = buildBlackjackEmbed('À vous de jouer : Tirez une carte ou Restez !');
-      const response = await interaction.reply({ embeds: [initialEmbed], components: [buildButtons(false, true)], fetchReply: true });
+      const response = await interaction.editReply({ embeds: [initialEmbed], components: [buildButtons(false, true)] });
 
       const collector = response.createMessageComponentCollector({
         componentType: ComponentType.Button,
